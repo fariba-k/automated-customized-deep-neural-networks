@@ -1,6 +1,6 @@
 import tensorflow as tf
 from tensorflow import keras
-from tensorflow.keras.layers import Input, Conv1D, MaxPooling1D, Flatten, Dense, Reshape, UpSampling1D, Dropout
+from keras.layers import Input, Conv2D, MaxPooling2D, Flatten, Dense, Reshape, UpSampling2D, Dropout
 import numpy as np
 from pandas import DataFrame
 import math
@@ -102,13 +102,13 @@ class CNN():
         current_size = self.input_dim[0]
         input_data = Input(shape=self.input_dim)
         x = Dropout(self.dropout)(input_data)
-        for i  in range(len(self.layers)):
+        for i  in range(len(self.layers)-1):
             l = self.layers[i]
             param = self.layers_param[i]
             if l=='c':
-                x = Conv1D(param, self.kernel_size, activation='tanh', padding='same')(x)
+                x = Conv2D(param, self.kernel_size, activation='tanh', padding='same')(x)
             elif l=='m':
-                x = MaxPooling1D(param, padding='same')(x)
+                x = MaxPooling2D(param, padding='same')(x)
                 current_size = math.ceil(current_size/param)
             elif l=='d':
                 x = Flatten()(x)
@@ -119,51 +119,3 @@ class CNN():
 
     def print_summary(self):
         self.cnn_model.summary()
-
-
-class CAE():
-    def __init__(self, input_dim, num_outputs=2, layers='cmcmdcucu' , layers_param=[64,2,16,2,32,16,2,64], num_classes=0, kernel_size=10, dropout=0.0001):
-        self.input_dim = input_dim
-        self.num_outputs = num_outputs
-        self.layers = layers
-        self.layers_param = layers_param
-        self.num_classes = num_classes
-        self.kernel_size = kernel_size
-        self.dropout = dropout
-        self.create_network()
-
-    def create_network(self):
-        current_size = self.input_dim[0]
-        input_data = Input(shape=self.input_dim)
-        x = Dropout(self.dropout)(input_data)
-        for i  in range(len(self.layers)):
-            l = self.layers[i]
-            param = self.layers_param[i]
-            if l=='c':
-                x = Conv1D(param, self.kernel_size, activation='tanh', padding='same')(x)
-            elif l=='m':
-                x = MaxPooling1D(param, padding='same')(x)
-                current_size = math.ceil(current_size/param)
-            elif l=='d':
-                x = Flatten()(x)
-                encoded = Dense(param, activation='tanh')(x)
-                x = Dense(int(current_size*self.layers_param[i-2]), activation='linear')(encoded)
-                x = Reshape((current_size, self.layers_param[i-2]))(x)
-            elif l=='u':
-                x = UpSampling1D(param)(x)
-                current_size = int(current_size*param)
-        decoded = Conv1D(self.input_dim[1], int(current_size-self.input_dim[0])+1, activation='tanh')(x)
-        if self.num_outputs==1:
-            self.cae_model = keras.models.Model(input_data, decoded, name='convolutional_autoencoder')
-            self.ce_model = keras.models.Model(input_data, encoded, name='convolutional_encoder')
-            self.cae_model.compile(optimizer='adam', loss=['categorical_crossentropy','mse'])
-        elif self.num_outputs==2:
-            x1 = Flatten()(encoded)
-            class_output = Dense(self.num_classes, activation='sigmoid')(x1)
-            self.cae_model = keras.models.Model(input_data, [class_output,decoded], name='hybrid_convolutional_autoencoder')
-            self.ce_model = keras.models.Model(input_data, encoded, name='convolutional_encoder')
-            self.cae_model.compile(optimizer='adam', loss=['categorical_crossentropy','mse'])
-
-    def print_summary(self):
-        self.cae_model.summary()
-        self.ce_model.summary()
